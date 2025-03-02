@@ -4,6 +4,8 @@
 #include <mojang/api/api.h>
 #include <string>
 
+using namespace utils;
+
 std::string utils::getOS() {
 #if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) ||                \
     defined(__TOS_WIN__) || defined(__WINDOWS__)
@@ -32,8 +34,8 @@ std::string utils::getArch() {
 }
 
 bool utils::checkRules(const std::vector<mojang::api::Rule> &rules) {
-  std::string OS_NAME = utils::getOS();
-  std::string ARCH_NAME = utils::getArch();
+  std::string OS_NAME = getOS();
+  std::string ARCH_NAME = getArch();
   if (OS_NAME == "unknown" || ARCH_NAME == "unknown") {
     return false;
   }
