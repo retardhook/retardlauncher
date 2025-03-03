@@ -1,4 +1,5 @@
 #include "utils.h"
+#include <cpr/api.h>
 #include <filesystem>
 #include <iostream>
 #include <mojang/api/api.h>
@@ -63,20 +64,21 @@ bool utils::download(const std::string &url, const std::string &path,
                      const std::string &filename) {
   std::string fullPath = path + filename;
   if (std::filesystem::exists(fullPath)) {
-    std::cout << filename << " already exists\n";
+    // std::cout << filename << " already exists\n";
     return true;
   }
   cpr::Response r = cpr::Get(cpr::Url{url});
+  // std::cout << r.status_code << std::endl;
 
   if (r.status_code == 200) {
     std::filesystem::create_directories(path);
     std::ofstream file(fullPath, std::ios::binary);
     file.write(r.text.data(), r.text.size());
     file.close();
-    std::cout << filename << " downloaded\n";
+    std::cout << url << " downloaded\n";
     return true;
   } else {
-    std::cout << "Failed to download " << filename << std::endl;
+    std::cout << "Failed to download " << url << std::endl;
     return false;
   }
 }

@@ -1,6 +1,7 @@
 #include "launch.h"
 #include "mojang/auth/offline.h"
 #include <cstdlib>
+#include <filesystem>
 #include <iostream>
 #include <mojang/api/api.h>
 #include <mojang/auth/offline.h>
@@ -19,16 +20,21 @@ bool Launcher::launch(const mojang::auth::UserInfo &userInfo,
       classpathStream << lib.path << separator;
     }
   }
-  classpathStream << jarInfo.path;
+  classpathStream << std::filesystem::current_path().string() + "/" +
+                         jarInfo.path;
   std::string classpath = classpathStream.str();
 
   std::string command =
       javaPath + " -Xss1M -cp " + classpath + " " + jarInfo.mainclass;
 
+  int count = 0;
   for (const auto &arg : jarInfo.arguments) {
     if (utils::checkRules(arg.rules)) {
       for (const auto &value : arg.value.values) {
-        command += " " + value;
+        if (count < 22) {
+          command += " " + value;
+          count++;
+        }
       }
     }
   }
@@ -44,7 +50,12 @@ bool Launcher::launch(const mojang::auth::UserInfo &userInfo,
   replacePlaceholder(command, "${auth_player_name}", userInfo.username);
   replacePlaceholder(command, "${version_name}", jarInfo.version);
   replacePlaceholder(command, "${game_directory}",
-                     std::filesystem::current_path().string() + jarInfo.path);
+                     std::filesystem::current_path().string() + "/jars/" +
+                         jarInfo.version);
+  replacePlaceholder(command, "${assets_root}",
+                     std::filesystem::current_path().string() + "/jars/" +
+                         jarInfo.version + "/assets");
+  replacePlaceholder(command, "${assets_index_name}", jarInfo.assetindexid);
   replacePlaceholder(command, "${auth_uuid}", userInfo.uuid);
   replacePlaceholder(command, "${auth_access_token}", userInfo.access_token);
   replacePlaceholder(command, "${clientid}", "");

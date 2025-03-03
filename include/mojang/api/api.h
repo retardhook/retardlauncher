@@ -43,6 +43,8 @@ struct JarInfo {
   std::string path;
   std::string mainclass;
   std::string mlv; // minimum launcher version
+  std::string assetindex;
+  std::string assetindexid;
 
   std::vector<Argument> arguments;
   std::vector<Library> libraries;
@@ -56,6 +58,7 @@ public:
 private:
   std::vector<Library> parseLibraries(const json &libraries);
   std::vector<Argument> parseArguments(const json &arguments);
+  bool downloadAssets(const JarInfo &jarInfo);
 };
 
 } // namespace mojang::api

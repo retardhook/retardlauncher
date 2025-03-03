@@ -1,4 +1,6 @@
 #include "api.h"
+#include <filesystem>
+#include <future>
 #include <utils/utils.h>
 
 using namespace mojang::api;
@@ -25,6 +27,8 @@ JarInfo Downloader::get(const std::string &version /*, std::string loader*/,
           jarInfo.version = version_info["id"].get<std::string>();
           jarInfo.url =
               version["downloads"]["client"]["url"].get<std::string>();
+          jarInfo.assetindex = version["assetIndex"]["url"].get<std::string>();
+          jarInfo.assetindexid = version["assetIndex"]["id"].get<std::string>();
           jarInfo.jsonurl = version_info["url"].get<std::string>();
           jarInfo.mainclass = version["mainClass"].get<std::string>();
           jarInfo.mlv =
@@ -54,7 +58,11 @@ JarInfo Downloader::get(const std::string &version /*, std::string loader*/,
                                  "client.jar")) {
               return {"", "", "", "", "", "", "", "", {}, {}};
             }
+            if (!downloadAssets(jarInfo)) {
+              return {"", "", "", "", "", "", "", "", {}, {}};
+            }
             jarInfo.path = "jars/" + jarInfo.version + "/client.jar";
+            std::vector<std::future<bool>> futures;
             for (auto &lib : jarInfo.libraries) {
               if (utils::checkRules(lib.rules)) {
                 std::string filename =
@@ -70,17 +78,25 @@ JarInfo Downloader::get(const std::string &version /*, std::string loader*/,
                 }
 
                 if (libArch == "unknown" || libArch == utils::getArch()) {
-                  if (!utils::download(
-                          lib.url, "jars/" + jarInfo.version + "/libraries/",
-                          filename)) {
-                    return {"", "", "", "", "", "", "", "", {}, {}};
-                  }
+                  futures.push_back(std::async(
+                      std::launch::async, [lib, jarInfo, filename]() {
+                        return utils::download(
+                            lib.url, "jars/" + jarInfo.version + "/libraries/",
+                            filename);
+                      }));
                   lib.path =
                       "jars/" + jarInfo.version + "/libraries/" + filename;
                 } else {
-                  std::cout << "Skipping library (architecture mismatch): "
-                            << lib.name << std::endl;
+                  // std::cout << "Skipping library (architecture mismatch): "
+                  // << lib.name << std::endl;
+                  continue;
                 }
+              }
+            }
+
+            for (auto &future : futures) {
+              if (!future.get()) {
+                return {"", "", "", "", "", "", "", "", {}, {}};
               }
             }
 
@@ -169,4 +185,38 @@ std::vector<Argument> Downloader::parseArguments(const json &arguments) {
     args.push_back(argument);
   }
   return args;
+}
+
+bool Downloader::downloadAssets(const JarInfo &jarInfo) {
+  cpr::Response r = cpr::Get(cpr::Url{jarInfo.assetindex});
+  // std::cout << "Downloading assets: " << jarInfo.assetindex << std::endl;
+  // std::cout << "Response: " << json::parse(r.text) << std::endl;
+
+  auto data = json::parse(r.text);
+  std::vector<std::future<bool>> futures;
+
+  for (const auto &asset : data["objects"]) {
+    // std::cout << "Candidate asset: " << asset << std::endl;
+
+    std::string hash = asset["hash"].get<std::string>();
+    std::string path = std::filesystem::current_path().string() + "/jars/" +
+                       jarInfo.version + "/assets/objects/" +
+                       hash.substr(0, 2) + "/" + hash;
+    // std::cout << "Checking asset: " << path << std::endl;
+    if (!std::filesystem::exists(path)) {
+      std::string url = "https://resources.download.minecraft.net/" +
+                        hash.substr(0, 2) + "/" + hash;
+      futures.push_back(std::async(std::launch::async, [url, path, hash]() {
+        return utils::download(url, path, hash);
+      }));
+    }
+  }
+
+  for (auto &future : futures) {
+    if (!future.get()) {
+      return false;
+    }
+  }
+
+  return true;
 }
