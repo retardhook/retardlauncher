@@ -201,7 +201,7 @@ bool Downloader::downloadAssets(const JarInfo &jarInfo) {
     std::string hash = asset["hash"].get<std::string>();
     std::string path = std::filesystem::current_path().string() + "/jars/" +
                        jarInfo.version + "/assets/objects/" +
-                       hash.substr(0, 2) + "/" + hash;
+                       hash.substr(0, 2) + "/";
     // std::cout << "Checking asset: " << path << std::endl;
     if (!std::filesystem::exists(path)) {
       std::string url = "https://resources.download.minecraft.net/" +
