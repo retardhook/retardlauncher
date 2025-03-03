@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minecraft Launcher</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --primary: #43b581;
+            --text: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --input-bg: #2a2a2a;
+            --border-radius: 6px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .launcher-container {
+            background-color: var(--card-bg);
+            border-radius: var(--border-radius);
+            width: 100%;
+            max-width: 500px;
+            padding: 30px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .launcher-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .launcher-header h1 {
+            font-size: 32px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            margin-bottom: 5px;
+        }
+
+        .launcher-header h2 {
+            font-size: 16px;
+            font-weight: 400;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 3px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 15px;
+            background-color: var(--input-bg);
+            border: 1px solid #333;
+            border-radius: var(--border-radius);
+            color: var(--text);
+            font-size: 16px;
+            transition: border-color 0.2s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        select.form-control {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a0a0a0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 15px center;
+            padding-right: 40px;
+        }
+
+        .launch-btn {
+            width: 100%;
+            padding: 14px;
+            background-color: var(--primary);
+            color: #fff;
+            border: none;
+            border-radius: var(--border-radius);
+            font-size: 16px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin-top: 10px;
+        }
+
+        .launch-btn:hover {
+            background-color: #3ca374;
+        }
+
+        .launch-btn:active {
+            transform: translateY(1px);
+        }
+
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* Debug Panel */
+        .debug-panel {
+            margin-top: 20px;
+            background-color: var(--input-bg);
+            border-radius: var(--border-radius);
+            padding: 15px;
+            font-family: monospace;
+            font-size: 14px;
+            color: #7cb342;
+            max-height: 150px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .debug-panel.active {
+            display: block;
+        }
+
+        .debug-toggle {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 12px;
+            text-decoration: underline;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+<div class="launcher-container">
+    <div class="launcher-header">
+        <h1>MINECRAFT</h1>
+        <h2>Launcher</h2>
+    </div>
+
+    <div class="form-group">
+        <label for="username">USERNAME</label>
+        <input type="text" id="username" class="form-control" placeholder="Enter your username">
+    </div>
+
+    <div class="form-group">
+        <label for="version">GAME VERSION</label>
+        <select id="version" class="form-control">
+            <!-- populated from api via js -->
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label for="jvm-args">JVM ARGUMENTS (OPTIONAL)</label>
+        <input type="text" id="jvm-args" class="form-control" placeholder="-Xmx2G -XX:+UnlockExperimentalVMOptions">
+    </div>
+
+    <button id="launch-btn" class="launch-btn">LAUNCH GAME</button>
+
+    <button id="debug-toggle" class="debug-toggle">Show Debug Info</button>
+
+    <div id="debug-panel" class="debug-panel">
+        <div id="debug-output">Debug information will appear here...</div>
+    </div>
+
+    <div class="footer">
+        © 2025 Minecraft Launcher • Not affiliated with Mojang
+    </div>
+</div>
+
+<script>
+    document.getElementById('launch-btn').addEventListener('click', function() {
+        const username = document.getElementById('username').value;
+        const version = document.getElementById('version').value;
+        const jvmArgs = document.getElementById('jvm-args').value;
+
+        if (!username) {
+            alert('Please enter a username');
+            return;
+        }
+
+        logDebug(`Launching Minecraft ${version} for user: ${username}`);
+
+        if (jvmArgs) {
+            logDebug(`Using JVM arguments: ${jvmArgs}`);
+        }
+
+        logDebug('Checking for Java installation...');
+        logDebug('Verifying game files...');
+        logDebug('Starting game...');
+
+        fetch('http://localhost:45932/launch', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                username: username,
+                version: version,
+                arguments: jvmArgs
+            })
+        })
+            .then(response => response.json())
+            .then(data => {
+                logDebug(`Game launched successfully: ${data.message}`);
+            })
+            .catch(error => {
+                logDebug(`Error launching game: ${error}`);
+            });
+    });
+
+    async function fetchVersions() {
+        try {
+            const response = await fetch('http://localhost:45932/versions');
+            const versions = await response.json();
+            const versionSelect = document.getElementById('version');
+
+            versionSelect.innerHTML = '';
+
+            const defaultOption = document.createElement('option');
+            defaultOption.textContent = 'Select Version';
+            versionSelect.appendChild(defaultOption);
+
+            versions.forEach(version => {
+                const option = document.createElement('option');
+                option.value = version;
+                option.textContent = version;
+                versionSelect.appendChild(option);
+            });
+        } catch (error) {
+            logDebug('Error fetching versions: ' + error);
+        }
+    }
+
+    const debugToggle = document.getElementById('debug-toggle');
+    const debugPanel = document.getElementById('debug-panel');
+
+    debugToggle.addEventListener('click', function() {
+        debugPanel.classList.toggle('active');
+        debugToggle.textContent = debugPanel.classList.contains('active')
+            ? 'Hide Debug Info'
+            : 'Show Debug Info';
+    });
+
+    function logDebug(message) {
+        const debugOutput = document.getElementById('debug-output');
+        const timestamp = new Date().toLocaleTimeString();
+        const logEntry = document.createElement('div');
+        logEntry.textContent = `[${timestamp}] ${message}`;
+        debugOutput.appendChild(logEntry);
+
+        if (!debugPanel.classList.contains('active')) {
+            debugPanel.classList.add('active');
+            debugToggle.textContent = 'Hide Debug Info';
+        }
+
+        debugPanel.scrollTop = debugPanel.scrollHeight;
+    }
+
+    window.onload = fetchVersions;
+</script>
+</body>
+</html>
