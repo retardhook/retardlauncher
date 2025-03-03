@@ -7,6 +7,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(SOURCES
 src/main.cpp
 include/mojang/api/api.cpp
+include/mojang/game/launch.cpp
+include/mojang/auth/offline.cpp
 include/utils/utils.cpp
 )
 
