@@ -2,11 +2,10 @@
 
 U need openssl, cpr n nlohmann json libraries to use ts gng
 
-
-```
-tstststsst     pmopmopmo       icliclicl     fr      fr   vrovorvro
-    ts      pmo                icl      icl  frfr  frfr  vro     vro
-    ts         pmopmo          icl      icl  fr  fr  fr  vro     vro
-    ts               pmo       icliclicl     fr      fr  vro     vro
-    ts      pmopmopmo          icl           fr      fr   vrovrovro
-```
+### @TODO
+- [ ] fix assets downloader so that they load properly on launch
+- [x] asynchronus downloads + improve speed
+- [ ] add the forge and fabric mod loaders
+- [ ] set up news api
+- [ ] basic ui for testing
+- [ ] improve launcher
