@@ -10,7 +10,7 @@ using namespace mojang::game;
 
 bool Launcher::launch(const mojang::auth::UserInfo& userInfo,
     const mojang::api::JarInfo& jarInfo,
-    const std::string& javaPath) {
+    const std::string& javaPath, const std::string& extra_args) {
     std::string separator = utils::getOS() == "windows" ? ";" : ":";
     std::ostringstream classpathStream;
     for (const auto& lib : jarInfo.libraries) {
@@ -24,7 +24,7 @@ bool Launcher::launch(const mojang::auth::UserInfo& userInfo,
     std::cout << jarInfo.path.c_str() << std::endl;
 
     std::string command =
-        javaPath + " -Xss1M -cp " + classpath + " " + jarInfo.mainclass;
+        javaPath + " " + extra_args + " -Xss1M -cp " + classpath + " " + jarInfo.mainclass;
 
     int count = 0;
     for (const auto& arg : jarInfo.arguments) {
