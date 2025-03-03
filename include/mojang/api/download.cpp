@@ -1,3 +1,4 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include "download.h"
 #include <filesystem>
 #include <future>
@@ -52,15 +53,18 @@ JarInfo Downloader::get(const std::string& version /*, std::string loader*/,
                             libs.end());
                     }
 
+                    std::string gameDir = get_game_dir();
+                    std::filesystem::create_directories(gameDir);
+
                     if (should_download) {
-                        if (!utils::download(jarInfo.url, "jars/" + jarInfo.version + "/",
+                        if (!utils::download(jarInfo.url, gameDir + "/versions/" + jarInfo.version + "/",
                             "client.jar")) {
                             return { "", "", "", "", "", "", "", "", {}, {} };
                         }
-                        if (!downloadAssets(jarInfo)) {
+                        if (!downloadAssets(jarInfo, gameDir)) {
                             return { "", "", "", "", "", "", "", "", {}, {} };
                         }
-                        jarInfo.path = "jars/" + jarInfo.version + "/client.jar";
+                        jarInfo.path = gameDir + "/versions/" + jarInfo.version + "/client.jar";
                         std::vector<std::future<bool>> futures;
                         for (auto& lib : jarInfo.libraries) {
                             if (utils::checkRules(lib.rules)) {
@@ -80,13 +84,13 @@ JarInfo Downloader::get(const std::string& version /*, std::string loader*/,
 
                                 if (libArch == "unknown" || libArch == utils::getArch()) {
                                     futures.push_back(std::async(
-                                        std::launch::async, [lib, jarInfo, filename]() {
+                                        std::launch::async, [lib, jarInfo, filename, gameDir]() {
                                             return utils::download(
-                                                lib.url, "jars/" + jarInfo.version + "/libraries/",
+                                                lib.url, gameDir + "/versions/" + jarInfo.version + "/libraries/",
                                                 filename);
                                         }));
                                     lib.path =
-                                        "jars/" + jarInfo.version + "/libraries/" + filename;
+                                        gameDir + "/versions/" + jarInfo.version + "/libraries/" + filename;
                                 }
                                 else {
                                     // std::cout << "Skipping library (architecture mismatch): "
@@ -192,13 +196,13 @@ std::vector<Argument> Downloader::parseArguments(const json& arguments) {
     return args;
 }
 
-bool Downloader::downloadAssets(const JarInfo& jarInfo) {
+bool Downloader::downloadAssets(const JarInfo& jarInfo, const std::string& gameDir) {
     cpr::Response r = cpr::Get(cpr::Url{ jarInfo.assetindex });
     // std::cout << "Downloading assets: " << jarInfo.assetindex << std::endl;
     // std::cout << "Response: " << json::parse(r.text) << std::endl;
 
-    std::string jsonPath = std::filesystem::current_path().string() + "/jars/" +
-        jarInfo.version + "/assets/indexes/" + jarInfo.assetindexid +".json"; 
+    std::string jsonPath = gameDir + "/versions/" +
+        jarInfo.version + "/assets/indexes/" + jarInfo.assetindexid + ".json";
 
     std::filesystem::create_directories(std::filesystem::path(jsonPath).parent_path());
     std::ofstream jsonFile(jsonPath);
@@ -218,7 +222,7 @@ bool Downloader::downloadAssets(const JarInfo& jarInfo) {
         // std::cout << "Candidate asset: " << asset << std::endl;
 
         std::string hash = asset["hash"].get<std::string>();
-        std::string path = std::filesystem::current_path().string() + "/jars/" +
+        std::string path = gameDir + "/versions/" +
             jarInfo.version + "/assets/objects/" +
             hash.substr(0, 2) + "/";
         // std::cout << "Checking asset: " << path << std::endl;
@@ -238,4 +242,31 @@ bool Downloader::downloadAssets(const JarInfo& jarInfo) {
     }
 
     return true;
+}
+
+std::string Downloader::get_game_dir() {
+    std::string gameDir;
+    char* temp = nullptr;
+
+    if (utils::getOS() == "windows") {
+        size_t len;
+        if (_dupenv_s(&temp, &len, "APPDATA") == 0 && temp != nullptr) {
+            gameDir = temp;
+            gameDir += "\\.retardlauncher";
+            free(temp);
+        }
+    }
+    else if (utils::getOS() == "linux") {
+        gameDir = std::getenv("HOME");
+        if (!gameDir.empty()) {
+            gameDir += "/.retardlauncher";
+        }
+    }
+    else if (utils::getOS() == "darwin") {
+        gameDir = std::getenv("HOME");
+        if (!gameDir.empty()) {
+            gameDir += "/Library/Application Support/retardlauncher";
+        }
+    }
+    return gameDir;
 }
