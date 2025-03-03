@@ -58,7 +58,8 @@ namespace mojang::api {
     private:
         std::vector<Library> parseLibraries(const json& libraries);
         std::vector<Argument> parseArguments(const json& arguments);
-        bool downloadAssets(const JarInfo& jarInfo);
+        bool downloadAssets(const JarInfo& jarInfo, const std::string& gameDir);
+        std::string get_game_dir();
     };
 
 } // namespace mojang::api
