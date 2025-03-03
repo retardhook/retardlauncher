@@ -20,5 +20,5 @@ make
 - [x] asynchronus downloads + improve speed
 - [ ] add the forge and fabric mod loaders
 - [x] set up news api
-- [ ] basic ui for testing
+- [x] basic ui for testing
 - [ ] improve launcher
