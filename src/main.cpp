@@ -7,25 +7,32 @@
 #include <string>
 #include <vector>
 #include <nlohmann/json.hpp>
+#include <mutex>
 
-// Helper function to set CORS headers
-void set_cors_headers(httplib::Response& res) {
+std::mutex download_mutex;
+bool is_downloading = false;
+bool is_launching = false;
+std::string current_downloading_version = "";
+
+void add_cors_headers(httplib::Response& res) {
     res.set_header("Access-Control-Allow-Origin", "*");
     res.set_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-    res.set_header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.set_header("Access-Control-Allow-Headers", "Content-Type");
+    res.set_header("Access-Control-Allow-Credentials", "true");
 }
 
 int main() {
     httplib::Server svr;
 
-    svr.Options("/download", [](const httplib::Request& req, httplib::Response& res) {
-        set_cors_headers(res);
+    svr.Options("/*", [](const httplib::Request& req, httplib::Response& res) {
+        add_cors_headers(res);
         res.status = 200;
         res.set_content("", "text/plain");
         });
 
     svr.Get("/download", [](const httplib::Request& req, httplib::Response& res) {
-        set_cors_headers(res);
+        add_cors_headers(res);
+
         nlohmann::json request_json;
         try {
             request_json = nlohmann::json::parse(req.body);
@@ -37,8 +44,31 @@ int main() {
         }
 
         std::string version = request_json["version"];
+
+        if (is_downloading && current_downloading_version == version) {
+            nlohmann::json response;
+            response["error"] = "Minecraft version is currently being downloaded, please check back later.";
+            response["estimated_time"] = "1 minute";
+
+            res.status = 429;
+            res.set_content(response.dump(), "application/json");
+            return;
+        }
+
+        {
+            std::lock_guard<std::mutex> lock(download_mutex);
+            is_downloading = true;
+            current_downloading_version = version;
+        }
+
         mojang::api::Downloader downloader;
         auto data = downloader.get(version, true);
+
+        {
+            std::lock_guard<std::mutex> lock(download_mutex);
+            is_downloading = false;
+            current_downloading_version = "";
+        }
 
         nlohmann::json response;
         response["version"] = data.version;
@@ -53,7 +83,8 @@ int main() {
         });
 
     svr.Get("/news", [](const httplib::Request& req, httplib::Response& res) {
-        set_cors_headers(res);
+        add_cors_headers(res);
+
         mojang::api::News news;
         std::vector<mojang::api::NewsInfo> entries = news.get();
 
@@ -69,8 +100,24 @@ int main() {
         res.set_content(response.dump(), "application/json");
         });
 
+    svr.Options("/launch", [](const httplib::Request& req, httplib::Response& res) {
+        add_cors_headers(res);
+        res.status = 200;
+        });
+
     svr.Post("/launch", [](const httplib::Request& req, httplib::Response& res) {
-        set_cors_headers(res);
+        add_cors_headers(res);
+
+        if (is_launching) {
+            nlohmann::json response;
+            response["error"] = "Minecraft is currently being launched, please try again later.";
+            response["estimated_time"] = "5 minutes"; 
+
+            res.status = 429;
+            res.set_content(response.dump(), "application/json");
+            return;
+        }
+
         nlohmann::json request_json;
         try {
             request_json = nlohmann::json::parse(req.body);
@@ -83,16 +130,43 @@ int main() {
 
         std::string version = request_json["version"];
         std::string username = request_json["username"];
+        std::string jvm_args = request_json["arguments"];
 
         std::cout << "launch endpoint called with version " << version << " and username " << username << std::endl;
+
+        if (is_downloading && current_downloading_version == version) {
+            nlohmann::json response;
+            response["error"] = "Minecraft version is currently being downloaded, please check back later.";
+            response["estimated_time"] = "30 minutes"; 
+
+            res.status = 429; 
+            res.set_content(response.dump(), "application/json");
+            return;
+        }
 
         mojang::auth::Offline offline;
         mojang::game::Launcher launcher;
 
-        auto user = offline.Login(username);
-        auto data = mojang::api::Downloader().get(version, true);
+        {
+            std::lock_guard<std::mutex> lock(download_mutex);
+            is_launching = true;
+        }
 
-        launcher.launch(user, data, "java");
+        if (!is_downloading) {
+            mojang::api::Downloader downloader;
+            auto data = downloader.get(version, true);
+            launcher.launch(offline.Login(username), data, "java", jvm_args);
+        }
+        else {
+            mojang::api::Downloader downloader;
+            auto data = downloader.get(version, false);
+            launcher.launch(offline.Login(username), data, "java", jvm_args);
+        }
+
+        {
+            std::lock_guard<std::mutex> lock(download_mutex);
+            is_launching = false;
+        }
 
         nlohmann::json response;
         response["status"] = "success";
@@ -102,8 +176,7 @@ int main() {
         });
 
     svr.Get("/versions", [](const httplib::Request& req, httplib::Response& res) {
-        set_cors_headers(res);
-        std::cout << "versions fetch was called" << std::endl;
+        add_cors_headers(res);
 
         cpr::Response r = cpr::Get(cpr::Url{
             "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json" });
