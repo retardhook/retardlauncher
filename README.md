@@ -1,4 +1,4 @@
-# retardlauncher
+# retardlauncher (being rewritten in go)
 
 U need openssl, cpr n nlohmann json dependenices to use ts gng
 
